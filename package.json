@@ -1,0 +1,9 @@
+{
+  "name": "orbit-app-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dashboard personnel de disponibilité pour applications web",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
