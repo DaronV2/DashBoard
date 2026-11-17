@@ -229,8 +229,14 @@ async function handleApi(request, response, url) {
 function serveStatic(response, pathname) {
   const files = {
     "/": ["index.html", "text/html; charset=utf-8"],
+    "/index.html": ["index.html", "text/html; charset=utf-8"],
     "/styles.css": ["styles.css", "text/css; charset=utf-8"],
     "/app.js": ["app.js", "text/javascript; charset=utf-8"],
+    "/manifest.webmanifest": ["manifest.webmanifest", "application/manifest+json; charset=utf-8"],
+    "/sw.js": ["sw.js", "text/javascript; charset=utf-8"],
+    "/icons/icon-192.png": ["icons/icon-192.png", "image/png"],
+    "/icons/icon-512.png": ["icons/icon-512.png", "image/png"],
+    "/icons/apple-touch-icon.png": ["icons/apple-touch-icon.png", "image/png"],
   };
   const file = files[pathname];
   if (!file) {
@@ -239,10 +245,11 @@ function serveStatic(response, pathname) {
   }
   response.writeHead(200, {
     "Content-Type": file[1],
-    "Cache-Control": "no-cache",
+    "Cache-Control": pathname.startsWith("/icons/") ? "public, max-age=31536000, immutable" : "no-cache",
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy": "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
     "Referrer-Policy": "no-referrer",
+    ...(pathname === "/sw.js" ? { "Service-Worker-Allowed": "/" } : {}),
   });
   fs.createReadStream(path.join(PUBLIC_DIR, file[0])).pipe(response);
 }

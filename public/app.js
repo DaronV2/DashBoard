@@ -233,6 +233,12 @@ loadApps()
   .then(() => checkApps())
   .catch((error) => showToast(`Impossible de charger les applications : ${error.message}`));
 
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch((error) => {
+    console.error("Impossible d'enregistrer le service worker Orbit :", error);
+  });
+}
+
 setInterval(() => {
   if (!document.hidden) void checkApps();
 }, 60_000);
