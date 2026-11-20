@@ -149,6 +149,7 @@ h1 span { color: #8165ef; }
 .app-card-top { display: flex; align-items: center; justify-content: space-between; }
 .app-identity { display: flex; min-width: 0; align-items: center; gap: 10px; }
 .app-logo { display: grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; overflow: hidden; border: 1px solid #eeeeF4; border-radius: 9px; background: #f8f7ff; color: #7562d9; font-family: "Manrope", sans-serif; font-size: 15px; font-weight: 800; text-transform: uppercase; }
+.app-favicon { width: 100%; height: 100%; object-fit: contain; }
 .app-logo.vercel { background: #17171b; color: #fff; }
 .app-logo.vercel svg { width: 17px; fill: currentColor; }
 .app-name-wrap { min-width: 0; }
@@ -170,6 +171,10 @@ h1 span { color: #8165ef; }
 .status-pill.checking { background: #f0edff; color: #7356df; }
 .http-label { color: #a3a5b2; font-size: 9px; }
 .app-details { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; padding-top: 11px; border-top: 1px solid #f0f0f4; }
+.vercel-details { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 9px; margin-top: 11px; padding-top: 10px; border-top: 1px solid #f0f0f4; }
+.vercel-details .status-pill { margin-top: 1px; }
+.vercel-inspector { grid-column: 1 / -1; width: fit-content; color: #7657e7; font-size: 9px; font-weight: 600; text-decoration: none; }
+.vercel-inspector:hover { text-decoration: underline; }
 .detail-label { display: block; margin-bottom: 4px; color: #aaaab7; font-size: 8px; }
 .detail-value { overflow: hidden; color: #606275; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .detail-value.latency { color: #359878; font-weight: 600; }
@@ -424,6 +429,8 @@ h1 span { color: #2456d7; }
 .status-pill.checking { background: #e6ecff; color: #2456d7; }
 .http-label, .detail-label { color: #737785; }
 .app-details { border-color: #d7d1c5; }
+.vercel-details { border-color: #d7d1c5; }
+.vercel-inspector { color: #2456d7; }
 .detail-value { color: #353b4b; }
 .detail-value.latency { color: #237b58; }
 .app-card.error-card .detail-value.latency { color: #b23732; }

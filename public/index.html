@@ -147,6 +147,9 @@
         <label class="form-label" for="health-path">Chemin de vérification <span class="optional-label">optionnel</span></label>
         <input class="form-input" id="health-path" name="healthPath" type="text" value="/" placeholder="/health">
         <p class="field-hint">Par défaut, Orbit vérifie la page d'accueil toutes les 60 secondes.</p>
+        <label class="form-label" for="vercel-project">Projet Vercel <span class="optional-label">optionnel</span></label>
+        <input class="form-input" id="vercel-project" name="vercelProjectId" type="text" maxlength="200" placeholder="ID ou nom du projet">
+        <p class="field-hint">Pour suivre le déploiement, configure aussi VERCEL_TOKEN sur le serveur Orbit.</p>
         <div class="form-error" id="form-error" role="alert" hidden></div>
         <div class="dialog-actions">
           <button class="secondary-button" id="cancel-dialog" type="button">Annuler</button>

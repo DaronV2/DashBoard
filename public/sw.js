@@ -1,4 +1,4 @@
-const CACHE_NAME = "orbit-shell-v1";
+const CACHE_NAME = "orbit-shell-v2";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -9,6 +9,12 @@ const APP_SHELL = [
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
 ];
+const REVALIDATE_PATHS = new Set([
+  "/app.js",
+  "/styles.css",
+  "/manifest.webmanifest",
+  "/sw.js",
+]);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -38,17 +44,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (request.mode === "navigate") {
+  if (request.mode === "navigate" || REVALIDATE_PATHS.has(url.pathname)) {
     event.respondWith(
       fetch(request)
         .then((response) => {
           if (response.ok) {
             const copy = response.clone();
-            void caches.open(CACHE_NAME).then((cache) => cache.put("/", copy));
+            const cacheKey = request.mode === "navigate" ? "/" : request;
+            void caches.open(CACHE_NAME).then((cache) => cache.put(cacheKey, copy));
           }
           return response;
         })
-        .catch(async () => (await caches.match("/")) || Response.error()),
+        .catch(async () => (await caches.match(request)) || (request.mode === "navigate" ? (await caches.match("/")) : null) || Response.error()),
     );
     return;
   }

@@ -12,6 +12,7 @@ const appsById = new Map();
 let applications = [];
 let sortAscending = true;
 let toastTimeout;
+let editingAppId = null;
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -38,6 +39,9 @@ function friendlyHost(value) {
 }
 
 function appLogo(app) {
+  if (app.favicon) {
+    return `<span class="app-logo"><img class="app-favicon" src="${escapeHtml(app.favicon)}" alt=""></span>`;
+  }
   const isVercel = app.url.toLowerCase().includes("vercel.app");
   return isVercel
     ? '<span class="app-logo vercel" aria-label="Vercel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 23 22H1L12 3Z"></path></svg></span>'
@@ -57,8 +61,28 @@ function statusDetails(app) {
   return { text: "Hors ligne", className: "offline" };
 }
 
+function vercelStatusDetails(vercel) {
+  if (!vercel) return null;
+  const states = {
+    READY: ["Production prête", "online"],
+    BUILDING: ["Build en cours", "checking"],
+    INITIALIZING: ["Initialisation", "checking"],
+    QUEUED: ["En attente de build", "checking"],
+    ERROR: ["Échec du déploiement", "offline"],
+    CANCELED: ["Déploiement annulé", "offline"],
+    BLOCKED: ["Déploiement bloqué", "offline"],
+    UNKNOWN: ["État Vercel inconnu", "pending"],
+    NONE: ["Aucun déploiement de production", "pending"],
+    UNCONFIGURED: ["Jeton Vercel non configuré", "pending"],
+    API_ERROR: ["API Vercel inaccessible", "error"],
+  };
+  const [text, className] = states[vercel.status.toUpperCase()] || states.UNKNOWN;
+  return { text, className, message: vercel.message || null };
+}
+
 function renderCard(app) {
   const status = statusDetails(app);
+  const vercel = app.vercelProjectId ? vercelStatusDetails(app.vercel) : null;
   const check = app.check;
   const codeText = check?.code ? `HTTP ${check.code}` : check?.error || "Pas encore vérifiée";
   const latency = check?.latency !== null && check?.latency !== undefined ? `${check.latency} ms` : "—";
@@ -76,7 +100,10 @@ function renderCard(app) {
       </div>
       <div class="menu-wrap">
         <button class="card-menu-button" type="button" aria-label="Options pour ${escapeHtml(app.name)}">···</button>
-        <div class="menu-popover" hidden><button type="button" data-delete="${escapeHtml(app.id)}">Supprimer</button></div>
+        <div class="menu-popover" hidden>
+          <button type="button" data-configure="${escapeHtml(app.id)}">${app.vercelProjectId ? "Modifier Vercel" : "Configurer Vercel"}</button>
+          <button type="button" data-delete="${escapeHtml(app.id)}">Supprimer</button>
+        </div>
       </div>
     </div>
     <div class="app-status-row">
@@ -86,7 +113,21 @@ function renderCard(app) {
     <div class="app-details">
       <div><span class="detail-label">TEMPS DE RÉPONSE</span><span class="detail-value latency">${escapeHtml(latency)}</span></div>
       <div><span class="detail-label">DERNIÈRE VÉRIFICATION</span><span class="detail-value">${escapeHtml(formatTime(check?.checkedAt))}</span></div>
-    </div>`;
+    </div>
+    ${vercel ? `
+      <div class="vercel-details">
+        <div><span class="detail-label">DÉPLOIEMENT VERCEL</span><span class="status-pill ${vercel.className}">${escapeHtml(vercel.text)}</span></div>
+        <div><span class="detail-label">${vercel.message ? "INFORMATION" : "DERNIER DÉPLOIEMENT"}</span><span class="detail-value">${vercel.message ? escapeHtml(vercel.message) : escapeHtml(formatTime(app.vercel?.createdAt))}</span></div>
+        ${app.vercel?.inspectorUrl ? `<a class="vercel-inspector" href="${escapeHtml(app.vercel.inspectorUrl)}" target="_blank" rel="noopener noreferrer">Voir dans Vercel ↗</a>` : ""}
+      </div>` : ""}`;
+  const favicon = card.querySelector(".app-favicon");
+  if (favicon) {
+    favicon.addEventListener("error", () => {
+      const logo = favicon.parentElement;
+      favicon.remove();
+      logo.textContent = app.name.slice(0, 1);
+    }, { once: true });
+  }
   return card;
 }
 
@@ -140,6 +181,7 @@ function setApps(items) {
 
 async function loadApps() {
   const result = await api("/api/apps");
+  document.body.classList.toggle("vercel-configured", result.vercelConfigured);
   setApps(result.apps);
 }
 
@@ -148,6 +190,7 @@ async function checkApps(showMessage = false) {
   refreshButton.classList.add("is-loading");
   try {
     const result = await api("/api/check", { method: "POST" });
+    document.body.classList.toggle("vercel-configured", result.vercelConfigured);
     setApps(result.apps);
     if (showMessage) showToast("Les statuts ont été actualisés.");
   } catch (error) {
@@ -157,8 +200,20 @@ async function checkApps(showMessage = false) {
   }
 }
 
-function openDialog() {
+function openDialog(app = null) {
+  editingAppId = app?.id || null;
   form.reset();
+  document.querySelector("#app-name").value = app?.name || "";
+  document.querySelector("#app-url").value = app?.url || "";
+  document.querySelector("#health-path").value = app?.healthPath || "/";
+  document.querySelector("#vercel-project").value = app?.vercelProjectId || "";
+  document.querySelector("#dialog-title").textContent = app ? "Configurer Vercel" : "On l'ajoute ?";
+  document.querySelector(".dialog-heading p").textContent = app
+    ? "Renseigne l'ID ou le nom du projet Vercel à suivre pour cette application."
+    : "Renseigne l'adresse publique de ton application pour commencer à la surveiller.";
+  document.querySelector("#submit-button").innerHTML = app
+    ? "Enregistrer le projet <span aria-hidden=\"true\">→</span>"
+    : "Ajouter l'application <span aria-hidden=\"true\">→</span>";
   formError.hidden = true;
   formError.textContent = "";
   dialog.showModal();
@@ -184,10 +239,20 @@ form.addEventListener("submit", async (event) => {
   submitButton.disabled = true;
   try {
     const body = Object.fromEntries(new FormData(form));
-    const result = await api("/api/apps", { method: "POST", body: JSON.stringify(body) });
-    setApps([...applications, result.app]);
+    const result = editingAppId
+      ? await api(`/api/apps/${encodeURIComponent(editingAppId)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ vercelProjectId: body.vercelProjectId }),
+      })
+      : await api("/api/apps", { method: "POST", body: JSON.stringify(body) });
+    document.body.classList.toggle("vercel-configured", result.vercelConfigured);
+    if (editingAppId) {
+      setApps(applications.map((app) => app.id === editingAppId ? result.app : app));
+    } else {
+      setApps([...applications, result.app]);
+    }
     dialog.close();
-    showToast(`${result.app.name} a été ajoutée à ton espace.`);
+    showToast(editingAppId ? "Projet Vercel mis à jour." : `${result.app.name} a été ajoutée à ton espace.`);
     void checkApps();
   } catch (error) {
     formError.textContent = error.message;
@@ -205,6 +270,12 @@ appGrid.addEventListener("click", async (event) => {
       if (item !== menu) item.hidden = true;
     });
     menu.hidden = !menu.hidden;
+    return;
+  }
+  const configureButton = event.target.closest("[data-configure]");
+  if (configureButton) {
+    const app = appsById.get(configureButton.dataset.configure);
+    if (app) openDialog(app);
     return;
   }
   const deleteButton = event.target.closest("[data-delete]");
